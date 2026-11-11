@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Carnival Constructor for Windows (64-bit).
+# Builds Carnival Constructor Classic for Windows (64-bit).
 # Output: dist/CarnivalConstructor/ with CarnivalConstructor.exe and its text files,
 # ready for the Ironite Launcher (the release zip) or for installer/CarnivalSetup.iss.
 # Needs Go 1.24+ and bash (Git Bash on Windows is fine). No C compiler needed.
@@ -16,7 +16,7 @@ VERSION=$(grep -m1 -oE '^## \[[0-9.]+' CHANGELOG.md | tr -d '#[ ')
 # Windows resource (icon + version info) for the .exe
 ( cd tools/mkres && GOWORK=off GOFLAGS=-mod=vendor go build -o "$ROOT/mkres.tmp" . )
 "$ROOT/mkres.tmp" -version "$VERSION" -icon icon-1024.png -out rsrc_windows_amd64.syso \
-  -name "Carnival Constructor" -exe "$EXE.exe" -internal "$EXE" -identity "Ironite.$BUNDLE" -desc "Carnival Constructor (Demo)"
+  -name "Carnival Constructor Classic" -exe "$EXE.exe" -internal "$EXE" -identity "Ironite.$BUNDLE" -desc "Carnival Constructor Classic (Demo)"
 rm -f "$ROOT/mkres.tmp"
 
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath \

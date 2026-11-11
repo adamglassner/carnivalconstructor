@@ -1,8 +1,8 @@
-CARNIVAL CONSTRUCTOR - Free Demo  (v@VERSION@)
+CARNIVAL CONSTRUCTOR CLASSIC - Free Demo  (v@VERSION@)
 An Ironite game. (c) 2026 Ironite.
-=============================================
+======================================================
 
-Open Carnival Constructor from the Start menu (Ironite folder), your
+Open Carnival Constructor Classic from the Start menu (Ironite folder), your
 desktop, or Ironite Launcher. Or just double-click CarnivalConstructor.exe.
 
 THE DEMO

@@ -1,4 +1,4 @@
-// Package carnival is the simulation behind Carnival Constructor: the lot,
+// Package carnival is the simulation behind Carnival Constructor Classic: the lot,
 // the attractions, the guests and the money. It has no graphics, so it can be
 // tested on its own.
 package carnival

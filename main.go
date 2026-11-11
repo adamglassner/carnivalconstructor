@@ -1,4 +1,4 @@
-// Carnival Constructor (c) 2026 Ironite.
+// Carnival Constructor Classic (c) 2026 Ironite.
 package main
 
 import (

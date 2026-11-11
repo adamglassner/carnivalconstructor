@@ -92,9 +92,12 @@ func (g *game) drawTitle(p pen) {
 	p.text("Carnival", display(104), lx, ly, alLeft, cGold)
 	p.text("Constructor", display(104), lx+6, ly+112, alLeft, cRed)
 	p.text("Constructor", display(104), lx, ly+106, alLeft, cGold)
-	p.rrect(lx+4, ly+178, 96, 32, 8, cRed)
-	p.text("DEMO", head(20), lx+52, ly+194, alCenter, cCream)
-	p.text("Build it. Run it. Pack it up. Roll to the next town.", body(20, 600), lx+116, ly+194, alLeft, cCream)
+	p.rrect(lx+4, ly+178, 118, 32, 8, cNavy)
+	p.rrectStroke(lx+4, ly+178, 118, 32, 8, 2, cGold)
+	p.text("CLASSIC", head(20), lx+63, ly+194, alCenter, cGold)
+	p.rrect(lx+132, ly+178, 96, 32, 8, cRed)
+	p.text("DEMO", head(20), lx+180, ly+194, alCenter, cCream)
+	p.text("Build it. Run it. Pack it up. Roll to the next town.", body(20, 600), lx+244, ly+194, alLeft, cCream)
 
 	bx, by, bw := lx, ly+250, 300.0
 	if sv, ok := g.run(); ok {

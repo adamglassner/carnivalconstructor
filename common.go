@@ -1,10 +1,10 @@
-// Carnival Constructor (c) 2026 Ironite.
+// Carnival Constructor Classic (c) 2026 Ironite.
 package main
 
 var version = "0.0.0-dev" // set with -ldflags "-X main.version=..."
 
 const (
-	productName = "Carnival Constructor"
+	productName = "Carnival Constructor Classic"
 	bundleName  = "CarnivalConstructor" // folder under %APPDATA%\Ironite
 	gameID      = "carnival"            // Ironite Launcher's id for this game
 )

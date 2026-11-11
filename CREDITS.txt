@@ -1,5 +1,5 @@
-CARNIVAL CONSTRUCTOR - Free Demo  (v@VERSION@)
-=============================================
+CARNIVAL CONSTRUCTOR CLASSIC - Free Demo  (v@VERSION@)
+======================================================
 
 Developed & Published by ... Ironite
 Game Design ................ Ironite

@@ -141,8 +141,11 @@ func (g *game) drawHUD(p pen) {
 	p.rect(-200, 62, 1840, 3, cRed)
 	p.text("Carnival", display(20), 30, 22, alLeft, cGold)
 	p.text("Constructor", display(20), 30, 44, alLeft, cGold)
-	p.rrect(180, 14, 52, 20, 5, cRed)
-	p.text("DEMO", head(12), 206, 24, alCenter, cCream)
+	p.rrect(176, 10, 60, 20, 5, cNavy)
+	p.rrectStroke(176, 10, 60, 20, 5, 1.5, cGold)
+	p.text("CLASSIC", head(11), 206, 20, alCenter, cGold)
+	p.rrect(176, 34, 60, 20, 5, cRed)
+	p.text("DEMO", head(12), 206, 44, alCenter, cCream)
 
 	p.text(s.Fair.Name, body(14, 700), 252, 22, alLeft, cCream)
 	sub := "Night " + itoa(s.Night)

@@ -1,7 +1,12 @@
 # Changelog
 
-All notable changes to Carnival Constructor are recorded here.
+All notable changes to Carnival Constructor Classic are recorded here.
 Versions follow Semantic Versioning (MAJOR.MINOR.PATCH). Versions before 1.0.0 are the free demo.
+
+## [0.2.1] - 2026-11-11
+
+### Changed
+- The game is now called Carnival Constructor Classic: on the title screen, the top bar, the window, the installer and the Start menu. Your saved run, settings and achievements carry over.
 
 ## [0.2.0] - 2026-11-11
 

@@ -1,4 +1,4 @@
-# Carnival Constructor (Demo)
+# Carnival Constructor Classic (Demo)
 
 A traveling carnival sim by Ironite, written in Go with [Ebitengine](https://ebitengine.org).
 Build rides, midway games and food stands on a fairground lot, open the gates at 6 PM, and keep the

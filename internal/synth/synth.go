@@ -1,4 +1,4 @@
-// Package synth makes Carnival Constructor's music and sound effects from
+// Package synth makes Carnival Constructor Classic's music and sound effects from
 // scratch: a calliope waltz and little bells, coins and clanks.
 package synth
 
