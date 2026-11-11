@@ -1,0 +1,9 @@
+dist/
+build/
+installer/Output/
+Output/
+rsrc_windows_amd64.syso
+mkres.tmp
+go.work
+go.work.sum
+webtest/
