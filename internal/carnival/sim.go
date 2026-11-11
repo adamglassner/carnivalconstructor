@@ -12,7 +12,6 @@ const (
 	PhaseBuild   Phase = iota // daytime: build and set prices
 	PhaseNight                // gates open
 	PhaseResults              // the night's takings
-	PhaseDone                 // the demo's three nights are over
 	PhaseBroke                // ran out of money
 )
 
@@ -70,14 +69,14 @@ type Sim struct {
 	Attr   []*Attraction
 	Guests []*Guest
 
-	Weather  Weather
-	Forecast []Weather
+	Weather Weather
 
 	Report  NightReport
 	Reports []NightReport
 	Events  []Event
 
 	Litter  []uint8
+	Path    []bool    // footpath tiles the player laid
 	Traffic []float32 // footsteps per tile; worn grass
 	Lit     []float32 // how lit each tile is at night (0-1)
 
@@ -102,16 +101,13 @@ func New(seed int64) *Sim {
 	n := s.W * s.H
 	s.grid = make([]int, n)
 	s.Litter = make([]uint8, n)
+	s.Path = make([]bool, n)
 	s.Traffic = make([]float32, n)
 	s.Lit = make([]float32, n)
 	s.trashNear = make([]bool, n)
 	s.GateX, s.GateY = 0, s.H/2
-	s.Forecast = make([]Weather, f.Nights)
-	for i := range s.Forecast {
-		s.Forecast[i] = []Weather{Clear, Clear, Breezy, Drizzle}[s.Rand.Intn(4)]
-	}
-	s.Forecast[0] = Clear // a gentle first night
-	s.Weather = s.Forecast[0]
+	s.Path[s.idx(0, s.GateY)], s.Path[s.idx(1, s.GateY)] = true, true
+	s.Weather = Clear // a gentle first night
 	s.layoutChanged()
 	return s
 }
@@ -226,6 +222,14 @@ func (s *Sim) Place(d *Def, x, y int) (*Attraction, error) {
 	s.Attr = append(s.Attr, a)
 	s.stamp(d, x, y, a.ID)
 	s.Cash -= d.Cost
+	for ty := y; ty < y+d.H; ty++ {
+		for tx := x; tx < x+d.W; tx++ {
+			if i := s.idx(tx, ty); s.Path[i] {
+				s.Path[i] = false
+				s.Cash += PathRefund
+			}
+		}
+	}
 	s.layoutChanged()
 	s.unstickGuests()
 	return a, nil
@@ -259,6 +263,53 @@ func (s *Sim) Sell(a *Attraction) int {
 	s.Cash += back
 	s.layoutChanged()
 	return back
+}
+
+var ErrPath = errors.New("There's already a path here")
+
+// CanPath checks whether a footpath can go on (x, y).
+func (s *Sim) CanPath(x, y int) error {
+	if !s.in(x, y) {
+		return ErrEdge
+	}
+	i := s.idx(x, y)
+	if s.grid[i] != 0 {
+		return ErrSpace
+	}
+	if s.Path[i] {
+		return ErrPath
+	}
+	if s.Cash < PathCost {
+		return ErrCash
+	}
+	return nil
+}
+
+// PlacePath lays a footpath tile.
+func (s *Sim) PlacePath(x, y int) error {
+	if err := s.CanPath(x, y); err != nil {
+		return err
+	}
+	s.Path[s.idx(x, y)] = true
+	s.Cash -= PathCost
+	s.pathsChanged()
+	return nil
+}
+
+// RemovePath takes a footpath tile up again (the gate path stays).
+func (s *Sim) RemovePath(x, y int) bool {
+	if !s.in(x, y) || s.reserved(x, y) || !s.Path[s.idx(x, y)] {
+		return false
+	}
+	s.Path[s.idx(x, y)] = false
+	s.Cash += PathRefund
+	s.pathsChanged()
+	return true
+}
+
+func (s *Sim) pathsChanged() {
+	s.flows = map[int][]int16{}
+	s.Version++
 }
 
 // Repair sends a mechanic to a broken ride.
@@ -379,11 +430,55 @@ func (s *Sim) bfs(from int) []int16 {
 	return d
 }
 
+// StepCost is how much guests mind walking onto a tile: they'd rather keep to the paths.
+func (s *Sim) StepCost(i int) int16 {
+	if s.Path[i] {
+		return 2
+	}
+	return 3
+}
+
+// flow measures the cost of walking from every tile to `target`, preferring paths.
+// A guest on tile i steps to the neighbour j where f[j]+StepCost(j) == f[i].
 func (s *Sim) flow(target int) []int16 {
 	if f, ok := s.flows[target]; ok {
 		return f
 	}
-	f := s.bfs(target)
+	f := make([]int16, len(s.grid))
+	for i := range f {
+		f[i] = -1
+	}
+	f[target] = 0
+	// costs are small integers, so a bucket queue does the job of a priority queue
+	buckets := [][]int{{target}}
+	for c := 0; c < len(buckets); c++ {
+		for k := 0; k < len(buckets[c]); k++ {
+			i := buckets[c][k]
+			if int(f[i]) != c {
+				continue
+			}
+			x, y := i%s.W, i/s.W
+			step := s.StepCost(i)
+			for _, n := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+				nx, ny := x+n[0], y+n[1]
+				if !s.in(nx, ny) {
+					continue
+				}
+				j := s.idx(nx, ny)
+				if s.grid[j] != 0 {
+					continue
+				}
+				nd := f[i] + step
+				if f[j] < 0 || nd < f[j] {
+					f[j] = nd
+					for len(buckets) <= int(nd) {
+						buckets = append(buckets, nil)
+					}
+					buckets[nd] = append(buckets[nd], j)
+				}
+			}
+		}
+	}
 	s.flows[target] = f
 	return f
 }
@@ -598,12 +693,8 @@ func (s *Sim) Next() {
 		s.Phase = PhaseBroke
 		return
 	}
-	if s.Night >= s.Fair.Nights {
-		s.Phase = PhaseDone
-		return
-	}
 	s.Night++
-	s.Weather = s.Forecast[s.Night-1]
+	s.Weather = []Weather{Clear, Clear, Breezy, Drizzle}[s.Rand.Intn(4)]
 	s.Phase = PhaseBuild
 }
 

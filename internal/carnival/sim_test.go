@@ -102,9 +102,22 @@ func TestThreeNights(t *testing.T) {
 	r = runNight(t, s)
 	t.Logf("night 3: %d guests, income $%d, profit $%d, happy %.0f, rep %.2f, cash $%d", r.Guests, r.Income(), r.Profit(), r.AvgHappy, r.RepAfter, s.Cash)
 	s.Next()
-	if s.Phase != PhaseDone {
-		t.Fatalf("expected the demo to end, phase %v", s.Phase)
+	if s.Phase != PhaseBuild || s.Night != 4 {
+		t.Fatalf("nights should go on: phase %v night %d", s.Phase, s.Night)
 	}
+	// save and pick the run back up
+	sv := s.Save()
+	l, err := Load(sv, 9)
+	if err != nil || l.Night != 4 || l.Cash != s.Cash || len(l.Attr) != len(s.Attr) || l.Rep != s.Rep {
+		t.Fatalf("load: %v night %d cash %d/%d attrs %d/%d", err, l.Night, l.Cash, s.Cash, len(l.Attr), len(s.Attr))
+	}
+	r = runNight(t, l)
+	t.Logf("night 4 after loading: %d guests, profit $%d", r.Guests, r.Profit())
+	for n := 5; n <= 12; n++ {
+		l.Next()
+		r = runNight(t, l)
+	}
+	t.Logf("night %d: %d guests, profit $%d, cash $%d, rep %.2f", r.Night, r.Guests, r.Profit(), l.Cash, l.Rep)
 }
 
 func TestRiggingCostsReputation(t *testing.T) {
@@ -158,5 +171,49 @@ func TestBreakdownAndRepair(t *testing.T) {
 	}
 	if a.Broken {
 		t.Fatal("still broken after the repair")
+	}
+}
+
+func TestGuestsPreferPaths(t *testing.T) {
+	s := New(11)
+	build(t, s, "carousel", 18, 2)
+	// a path from the gate along row 7 and up to the carousel's entrance (19, 5)
+	for x := 2; x <= 19; x++ {
+		if err := s.PlacePath(x, s.GateY); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for y := 5; y < s.GateY; y++ {
+		if err := s.PlacePath(19, y); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.PlacePath(5, s.GateY); err != ErrPath {
+		t.Fatalf("double path: %v", err)
+	}
+	r := runNight(t, s)
+	on, off := float32(0), float32(0)
+	for i, tr := range s.Traffic {
+		if s.Path[i] {
+			continue
+		}
+		off += tr
+	}
+	_ = on
+	t.Logf("%d guests, %0.f steps off the path", r.Guests, off)
+	if r.Guests < 10 || off > float32(r.Guests)*6 {
+		t.Fatalf("guests should mostly keep to the path (%.0f steps off it)", off)
+	}
+	cash := s.Cash
+	if !s.RemovePath(10, s.GateY) || s.Cash != cash+PathRefund {
+		t.Fatal("remove path")
+	}
+	if s.RemovePath(0, s.GateY) {
+		t.Fatal("the gate path should stay")
+	}
+	sv := s.Save()
+	l, _ := Load(sv, 1)
+	if l.Path[l.idx(10, s.GateY)] || !l.Path[l.idx(11, s.GateY)] {
+		t.Fatal("paths not saved")
 	}
 }

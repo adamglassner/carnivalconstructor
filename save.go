@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	cv "github.com/adamglassner/carnivalconstructor/internal/carnival"
 )
 
 type saveData struct {
@@ -16,7 +18,7 @@ type saveData struct {
 	} `json:"settings"`
 	Stats struct {
 		Runs       int `json:"runs"`
-		Finished   int `json:"finished"`
+		BestNight  int `json:"bestNight"`
 		Nights     int `json:"nights"`
 		Guests     int `json:"guests"`
 		BestProfit int `json:"bestProfit"`
@@ -89,9 +91,12 @@ var achievements = []achievement{
 	{"crowd", "Step Right Up", "Welcome 120 guests in a single night.", false},
 	{"pleaser", "Crowd Pleaser", "Finish a night with guests 80% happy or better.", false},
 	{"houseedge", "The House Always Wins", "Take $400 at the midway games in one night.", false},
-	{"honest", "Honest Carny", "Finish the demo without ever rigging a game.", false},
+	{"honest", "Honest Carny", "Make it through three nights without ever rigging a game.", false},
 	{"wheel", "Big Wheel", "Build a Ferris Wheel.", false},
-	{"roadready", "Road Ready", "Finish all three nights at Pine Hollow.", false},
+	{"roadready", "Opening Weekend", "Make it through three nights at Pine Hollow.", false},
+	{"regular", "Season Regular", "Keep the carnival running for ten nights.", false},
+	{"bankroll", "Bankroll", "Have $25,000 in cash at the end of a night.", false},
+	{"paved", "Paved Paradise", "Lay 40 tiles of footpath.", false},
 	{"caught", "Caught Red-Handed", "Have a guest call one of your games rigged.", true},
 }
 
@@ -143,4 +148,92 @@ func (g *game) writeAchievements() {
 		out.Achievements = append(out.Achievements, it)
 	}
 	writeJSON(filepath.Join(dir, "Achievements", gameID+".json"), out)
+}
+
+/* ---------- the run in progress ---------- */
+
+func runPath() string {
+	if dir := appDir(); dir != "" {
+		return filepath.Join(dir, bundleName, "run.json")
+	}
+	return ""
+}
+
+// saveRun keeps the run as it stands this morning, so Continue can pick it up.
+func (g *game) saveRun() {
+	path := runPath()
+	if path == "" || g.sim == nil {
+		return
+	}
+	if ph := g.sim.Phase; ph != cv.PhaseBuild && !(ph == cv.PhaseResults && g.sim.Cash >= -1500) {
+		return
+	}
+	b, err := json.Marshal(g.sim.Save())
+	if err != nil || string(b) == g.savedAt {
+		return
+	}
+	g.savedAt = string(b)
+	writeJSON(path, json.RawMessage(b))
+}
+
+func (g *game) deleteRun() {
+	if path := runPath(); path != "" {
+		_ = os.Remove(path)
+	}
+	g.savedAt = ""
+}
+
+// savedRun reads the run in progress, if there is one.
+func savedRun() (cv.Saved, bool) {
+	var sv cv.Saved
+	path := runPath()
+	if path == "" {
+		return sv, false
+	}
+	b, err := os.ReadFile(path)
+	if err != nil || json.Unmarshal(b, &sv) != nil || sv.Night < 1 {
+		return sv, false
+	}
+	return sv, true
+}
+
+func (g *game) continueRun() {
+	sv, ok := savedRun()
+	if !ok {
+		g.newRun()
+		return
+	}
+	s, err := cv.Load(sv, time.Now().UnixNano())
+	if err != nil {
+		g.newRun()
+		return
+	}
+	g.sim = s
+	g.screen, g.panel = "play", ""
+	g.placing, g.sel, g.selGuest, g.pathTool = nil, nil, nil, 0
+	g.paused, g.speed, g.tab = false, 1, cv.CatRide
+	g.floaters, g.toasts, g.log = nil, nil, nil
+	g.rigged = false
+	for _, a := range s.Attr {
+		if a.Rig > 0.001 {
+			g.rigged = true
+		}
+	}
+	resultsShown[s] = s.Night - 1
+	g.note("Welcome back! Night " + itoa(s.Night) + " at " + s.Fair.Name + ".")
+}
+
+// run caches the saved run for the title screen (it's read once a second at most).
+var runCache struct {
+	at time.Time
+	sv cv.Saved
+	ok bool
+}
+
+func (g *game) run() (cv.Saved, bool) {
+	if time.Since(runCache.at) > time.Second {
+		runCache.sv, runCache.ok = savedRun()
+		runCache.at = time.Now()
+	}
+	return runCache.sv, runCache.ok
 }

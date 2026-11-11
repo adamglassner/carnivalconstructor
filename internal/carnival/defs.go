@@ -91,15 +91,14 @@ func DefByID(id string) *Def {
 	return nil
 }
 
-// The one fair in the demo. The full game goes on tour.
+// The one fair in the demo, which runs night after night. The full game goes on tour.
 type Fair struct {
-	Name   string
-	Nights int
-	W, H   int
-	Rep    float64 // the town's starting opinion of you
+	Name string
+	W, H int
+	Rep  float64 // the town's starting opinion of you
 }
 
-var DemoFair = Fair{Name: "Pine Hollow County Fair", Nights: 3, W: 24, H: 14, Rep: 2.5}
+var DemoFair = Fair{Name: "Pine Hollow County Fair", W: 24, H: 14, Rep: 2.5}
 
 const (
 	StartCash     = 8000
@@ -110,4 +109,6 @@ const (
 	DefaultGate   = 5
 	MaxGate       = 15
 	SellBack      = 0.6
+	PathCost      = 10 // per tile
+	PathRefund    = 5
 )

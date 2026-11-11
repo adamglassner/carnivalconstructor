@@ -29,16 +29,20 @@ type toastMsg struct {
 }
 
 type game struct {
-	sim      *cv.Sim
-	save     saveData
-	screen   string // "title" or "play"
-	panel    string // "", "menu", "help", "settings"
-	speed    int    // 1, 2 or 3
-	paused   bool
-	tab      cv.Cat
-	placing  *cv.Def
-	sel      *cv.Attraction
-	selGuest *cv.Guest
+	sim       *cv.Sim
+	save      saveData
+	screen    string // "title" or "play"
+	panel     string // "", "menu", "help", "settings"
+	speed     int    // 1, 2 or 3
+	paused    bool
+	tab       cv.Cat
+	placing   *cv.Def
+	pathTool  int  // 1 = lay paths, 2 = take them up
+	painting  bool // dragging a path tool across the lot
+	lastPaint int
+	savedAt   string // what the run file last held
+	sel       *cv.Attraction
+	selGuest  *cv.Guest
 
 	hits     []hit
 	dragging func(mx float64)
@@ -74,9 +78,11 @@ func (g *game) newRun() {
 	g.floaters, g.toasts, g.log = nil, nil, nil
 	g.rigged = false
 	g.runStart = time.Now()
+	g.pathTool = 0
 	g.save.Stats.Runs++
 	g.persist()
 	g.note("Welcome to " + g.sim.Fair.Name + "!")
+	g.saveRun()
 }
 
 // applyTestQuery sets up a scene for automated screenshots.
@@ -92,7 +98,7 @@ func (g *game) applyTestQuery(q string) {
 	if has("panel=settings") {
 		g.panel = "settings"
 	}
-	if !has("play") && !has("night") && !has("results") && !has("done") {
+	if !has("play") && !has("night") && !has("results") {
 		return
 	}
 	g.newRun()
@@ -110,7 +116,7 @@ func (g *game) applyTestQuery(q string) {
 		}
 		s.Cash = 3120
 	}
-	if has("night") || has("results") || has("done") {
+	if has("night") || has("results") {
 		s.OpenGates()
 		target := 0.55
 		if has("late") {
@@ -129,22 +135,24 @@ func (g *game) applyTestQuery(q string) {
 			}
 		}
 	}
-	if has("results") || has("done") {
+	if has("results") {
 		for s.Phase == cv.PhaseNight {
 			s.Update(0.1)
 		}
 		s.Events = nil
 	}
-	if has("done") {
-		for s.Phase != cv.PhaseDone {
-			s.Next()
-			if s.Phase == cv.PhaseBuild {
-				s.OpenGates()
-				for s.Phase == cv.PhaseNight {
-					s.Update(0.1)
-				}
+	if has("paths") {
+		for x := 2; x < 22; x++ {
+			s.PlacePath(x, 6)
+		}
+		for _, x := range []int{4, 8, 11, 15, 20} {
+			for y := 5; y >= 4; y-- {
+				s.PlacePath(x, y)
 			}
 		}
+		g.tab, g.pathTool = tabPaths, 1
+		g.mx, g.my = 520, 400
+		g.fixedMouse = true
 	}
 	if has("place") {
 		g.placing = cv.DefByID("ferris")
@@ -194,6 +202,9 @@ func (g *game) Update() error {
 			}
 		}
 		g.events()
+		if s.Phase == cv.PhaseBuild && int(g.clock*60)%60 == 0 {
+			g.saveRun() // keeps what's been built today
+		}
 		if g.selGuest != nil && !g.guestAlive(g.selGuest) {
 			g.selGuest = nil
 		}
@@ -252,8 +263,8 @@ func (g *game) keys() {
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		switch {
-		case g.placing != nil:
-			g.placing = nil
+		case g.placing != nil || g.pathTool > 0:
+			g.placing, g.pathTool = nil, 0
 		case g.panel != "":
 			g.panel = ""
 		case g.sel != nil || g.selGuest != nil:
@@ -274,7 +285,7 @@ func (g *game) keys() {
 		}
 	}
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
-		g.placing = nil
+		g.placing, g.pathTool = nil, 0
 	}
 	if g.sel != nil && (inpututil.IsKeyJustPressed(ebiten.KeyDelete)) {
 		g.sellSelected()
@@ -282,6 +293,13 @@ func (g *game) keys() {
 }
 
 func (g *game) mouse() {
+	if g.painting {
+		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && g.pathTool > 0 && g.sim != nil {
+			g.paint()
+			return
+		}
+		g.painting = false
+	}
 	if g.dragging != nil {
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 			g.dragging(g.mx)
@@ -318,6 +336,13 @@ func (g *game) clickWorld() {
 		return
 	}
 	tx, ty, in := g.mouseTile()
+	if g.pathTool > 0 {
+		if in {
+			g.painting, g.lastPaint = true, -1
+			g.paint()
+		}
+		return
+	}
 	if g.placing != nil {
 		if !in {
 			return
@@ -492,24 +517,69 @@ func (g *game) onResults() {
 	if r.Games >= 400 {
 		g.unlock("houseedge")
 	}
-}
-
-// finishDemo is called when the player tears down after the last night.
-func (g *game) finishDemo() {
-	s := g.sim
-	s.Next()
-	if s.Phase == cv.PhaseDone {
-		g.save.Stats.Finished++
-		if s.Cash > g.save.Stats.BestCash {
-			g.save.Stats.BestCash = s.Cash
-		}
+	g.saveRun()
+	if s.Night >= 3 {
 		g.unlock("roadready")
 		if !g.rigged {
 			g.unlock("honest")
 		}
-		snd.play("fanfare")
+	}
+	if s.Night >= 10 {
+		g.unlock("regular")
+	}
+	if s.Cash >= 25000 {
+		g.unlock("bankroll")
+	}
+	if s.Night > g.save.Stats.BestNight {
+		g.save.Stats.BestNight = s.Night
+	}
+	if s.Cash > g.save.Stats.BestCash {
+		g.save.Stats.BestCash = s.Cash
 	}
 	g.persist()
+}
+
+// nextDay moves on from the results screen to the next morning.
+func (g *game) nextDay() {
+	s := g.sim
+	s.Next()
+	if s.Phase == cv.PhaseBroke {
+		g.deleteRun()
+		return
+	}
+	g.saveRun()
+}
+
+// paint lays or takes up a path on the tile under the mouse.
+func (g *game) paint() {
+	tx, ty, in := g.mouseTile()
+	if !in {
+		return
+	}
+	i := ty*g.sim.W + tx
+	if i == g.lastPaint {
+		return
+	}
+	g.lastPaint = i
+	if g.pathTool == 1 {
+		switch err := g.sim.PlacePath(tx, ty); err {
+		case nil:
+			snd.play("tab")
+			n := 0
+			for _, p := range g.sim.Path {
+				if p {
+					n++
+				}
+			}
+			if n >= 42 { // 40 laid plus the two at the gate
+				g.unlock("paved")
+			}
+		case cv.ErrCash:
+			snd.play("error")
+		}
+	} else if g.sim.RemovePath(tx, ty) {
+		snd.play("sell")
+	}
 }
 
 func (g *game) Draw(screen *ebiten.Image) {

@@ -2,7 +2,7 @@
 
 A traveling carnival sim by Ironite, written in Go with [Ebitengine](https://ebitengine.org).
 Build rides, midway games and food stands on a fairground lot, open the gates at 6 PM, and keep the
-crowd happy (and spending) until 11. This is the free demo: three nights at the Pine Hollow County Fair.
+crowd happy (and spending) until 11. This is the free demo: the Pine Hollow County Fair, night after night, for as long as you can keep it going.
 It ships on its own and inside the [Ironite Launcher](https://github.com/adamglassner/launcher), where it's
 listed under Simulation as a DEMO.
 
@@ -11,6 +11,7 @@ listed under Simulation as a DEMO.
 - **Daytime:** pick something from the bar at the bottom and click the lot to build it. Guests line up at
   the gold square in front. Click anything you've built to set its price, set a midway game's prize odds,
   or sell it.
+- **Paths:** on the Paths tab, click and drag to lay footpaths. Guests keep to them, walk faster and stay happier.
 - **Night:** press **Open the Gates**. Guests pay admission, then ride, play, eat, rest and drop litter.
   Space pauses; 1, 2 and 3 set the speed.
 - **Fair or rigged:** rigging a game pays out fewer prizes, but guests catch on and your reputation drops.
@@ -18,7 +19,8 @@ listed under Simulation as a DEMO.
 - Rides break down now and then: click the ride and send a mechanic.
 - Esc cancels or opens the menu, M toggles music, F11 toggles full screen, Delete sells what's selected.
 
-Settings, records and achievements are kept in `%APPDATA%\Ironite\CarnivalConstructor\save.json`, and the
+Settings, records and achievements are kept in `%APPDATA%\Ironite\CarnivalConstructor\save.json`, the run in
+progress (saved every morning, for Continue) in `run.json` beside it, and the
 achievements Ironite Launcher shows in `%APPDATA%\Ironite\Achievements\carnival.json`.
 
 ## Play

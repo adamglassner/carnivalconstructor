@@ -109,6 +109,7 @@ func (g *game) drawPlay(p pen) {
 	if g.placing != nil {
 		g.drawGhost(p)
 	}
+	g.drawPathGhost(p)
 	for _, f := range g.floaters {
 		c := cGold
 		if !f.good {
@@ -128,8 +129,6 @@ func (g *game) drawPlay(p pen) {
 	switch s.Phase {
 	case cv.PhaseResults:
 		g.drawResults(p)
-	case cv.PhaseDone:
-		g.drawDone(p)
 	case cv.PhaseBroke:
 		g.drawBroke(p)
 	}
@@ -146,7 +145,7 @@ func (g *game) drawHUD(p pen) {
 	p.text("DEMO", head(12), 206, 24, alCenter, cCream)
 
 	p.text(s.Fair.Name, body(14, 700), 252, 22, alLeft, cCream)
-	sub := "Night " + itoa(s.Night) + " of " + itoa(s.Fair.Nights)
+	sub := "Night " + itoa(s.Night)
 	switch s.Phase {
 	case cv.PhaseBuild:
 		sub += " · Daytime: build and set prices"
@@ -465,9 +464,12 @@ func (g *game) drawBuildBar(p pen) {
 	p.rrectStroke(x0, y0, 1384, 156, 12, 1, cLine)
 	// tabs
 	tx := x0 + 12
-	for c := cv.CatRide; c <= cv.CatExtra; c++ {
+	for c := cv.CatRide; c <= tabPaths; c++ {
 		c := c
-		label := cv.CatNames[c]
+		label := "Paths"
+		if c < tabPaths {
+			label = cv.CatNames[c]
+		}
 		w := textW(label, head(14)) + 28
 		on := g.tab == c
 		bg := cNavy
@@ -479,11 +481,14 @@ func (g *game) drawBuildBar(p pen) {
 		}
 		p.rrect(tx, y0+10, w, 28, 14, bg)
 		p.text(label, head(14), tx+w/2, y0+24, alCenter, fg)
-		g.onClick(tx, y0+10, w, 28, func() { g.tab = c; snd.play("tab") })
+		g.onClick(tx, y0+10, w, 28, func() { g.tab = c; g.placing = nil; g.pathTool = 0; snd.play("tab") })
 		tx += w + 8
 	}
 	// cards
 	cx := x0 + 12
+	if g.tab == tabPaths {
+		g.drawPathCards(p, cx, y0+46)
+	}
 	for _, d := range cv.Defs {
 		if d.Cat != g.tab {
 			continue
@@ -528,6 +533,7 @@ func (g *game) drawBuildBar(p pen) {
 		if !d.Locked {
 			g.onClick(cx, cy, cw, ch, func() {
 				snd.play("click")
+				g.pathTool = 0
 				if g.placing == d {
 					g.placing = nil
 				} else {
@@ -552,7 +558,9 @@ func (g *game) drawBuildBar(p pen) {
 		}
 		ny += 4
 	}
-	if g.placing != nil {
+	if g.pathTool > 0 {
+		p.text("Click and drag on the lot · Right-click or Esc to stop", body(12, 600), nx, y0+146, alLeft, cGold)
+	} else if g.placing != nil {
 		p.text("Click the lot to build · Right-click or Esc to cancel", body(12, 600), nx, y0+146, alLeft, cGold)
 	}
 	// the big button
@@ -636,4 +644,46 @@ func (g *game) drawToasts(p pen) {
 		}
 		y += h + 8
 	}
+}
+
+const tabPaths = cv.Cat(4)
+
+func (g *game) drawPathCards(p pen, cx, cy float64) {
+	cards := []struct {
+		tool       int
+		name, cost string
+	}{{1, "Footpath", money(cv.PathCost) + " a tile"}, {2, "Remove Path", "+" + money(cv.PathRefund) + " back"}}
+	for _, c := range cards {
+		c := c
+		cw, ch := 136.0, 98.0
+		bg := cNavy
+		if g.hover(cx, cy, cw, ch) {
+			bg = mix(cNavy, cPanel2, 0.7)
+		}
+		p.rrect(cx, cy, cw, ch, 10, bg)
+		if g.pathTool == c.tool {
+			p.rrectStroke(cx, cy, cw, ch, 10, 3, cGold)
+		}
+		// a little stretch of path
+		for i := 0; i < 3; i++ {
+			drawPathTile(p, cx+26+float64(i)*28, cy+12, 28, i > 0, i < 2, false, false)
+		}
+		if c.tool == 2 {
+			p.line(cx+46, cy+16, cx+90, cy+48, 4, cRed)
+			p.line(cx+90, cy+16, cx+46, cy+48, 4, cRed)
+		}
+		p.text(c.name, head(13), cx+8, cy+72, alLeft, cCream)
+		p.text(c.cost, body(12, 600), cx+8, cy+88, alLeft, cGold)
+		g.onClick(cx, cy, cw, ch, func() {
+			snd.play("click")
+			g.placing = nil
+			if g.pathTool == c.tool {
+				g.pathTool = 0
+			} else {
+				g.pathTool, g.sel, g.selGuest = c.tool, nil, nil
+			}
+		})
+		cx += cw + 8
+	}
+	p.para("Guests keep to paths, walk faster on them and stay happier. Grass gets trampled and muddy.", body(12, 400), cx+8, cy+18, 300, 17, cTan)
 }

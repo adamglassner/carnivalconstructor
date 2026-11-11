@@ -3,6 +3,20 @@
 All notable changes to Carnival Constructor are recorded here.
 Versions follow Semantic Versioning (MAJOR.MINOR.PATCH). Versions before 1.0.0 are the free demo.
 
+## [0.2.0] - 2026-11-11
+
+### Added
+- Nights go on forever. Keep your carnival running at Pine Hollow night after night instead of stopping after three. The top bar shows which night you're on.
+- Footpaths. On the new Paths tab, click and drag across the lot to lay paths ($10 a tile), or take them up again for $5 back. Guests prefer to walk on paths, walk faster on them and stay happier; tramping across the grass wears it down and makes for muddy shoes on drizzly nights. Wandering guests stroll along your paths. Building over a path takes it up.
+- Continue. Your run is saved every morning (and as you build), so you can quit and pick up where you left off with Continue on the title screen. New Game starts fresh.
+- New achievements: Season Regular (ten nights), Bankroll ($25,000 in cash) and Paved Paradise (40 tiles of path). Opening Weekend and Honest Carny now unlock after three nights.
+
+### Changed
+- The title screen shows your longest run and best cash.
+
+### Fixed
+- The lights at night were far too bright: where light poles, rides and food stands overlapped, the lot washed out to a glare. Lights are now soft pools of warm light, so the night stays dark around them.
+
 ## [0.1.0] - 2026-11-11
 
 ### Added

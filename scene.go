@@ -65,8 +65,10 @@ func (g *game) drawLot(p pen) {
 		p.circle(x, y, 3, hex(0x2f6340))
 	}
 	// the road in to the gate
-	gx, gy := tilePx(0, float64(s.GateY))
-	p.rect(-200, gy+4, 200+LX, TS-8, cDirt)
+	_, gy := tilePx(0, float64(s.GateY))
+	for x := LX - TS*6; x < LX; x += TS {
+		drawPathTile(p, x, gy, TS, true, true, false, false)
+	}
 	// grass
 	for y := 0; y < s.H; y++ {
 		for x := 0; x < s.W; x++ {
@@ -78,11 +80,11 @@ func (g *game) drawLot(p pen) {
 			p.rect(px, py, TS+0.5, TS+0.5, c)
 		}
 	}
-	// worn paths where guests walk most
+	// worn grass where guests walk most
 	for y := 0; y < s.H; y++ {
 		for x := 0; x < s.W; x++ {
 			t := s.Traffic[y*s.W+x]
-			if t < 4 {
+			if t < 4 || s.Path[y*s.W+x] {
 				continue
 			}
 			k := math.Min(0.8, float64(t)/110)
@@ -90,9 +92,18 @@ func (g *game) drawLot(p pen) {
 			p.rrect(px-4, py-4, TS+8, TS+8, 18, withA(cDirt, k))
 		}
 	}
-	// the gate tile is a dirt path
-	p.rect(gx, gy+4, TS*2, TS-8, mix(cDirt, cGrass, 0.2))
-	if s.Phase == cv.PhaseBuild || g.placing != nil {
+	// footpaths
+	isPath := func(x, y int) bool { return x >= 0 && y >= 0 && x < s.W && y < s.H && s.Path[y*s.W+x] }
+	for y := 0; y < s.H; y++ {
+		for x := 0; x < s.W; x++ {
+			if !isPath(x, y) {
+				continue
+			}
+			px, py := tilePx(float64(x), float64(y))
+			drawPathTile(p, px, py, TS, isPath(x-1, y) || (x == 0 && y == s.GateY), isPath(x+1, y), isPath(x, y-1), isPath(x, y+1))
+		}
+	}
+	if s.Phase == cv.PhaseBuild || g.placing != nil || g.pathTool > 0 {
 		for x := 0; x <= s.W; x++ {
 			px, _ := tilePx(float64(x), 0)
 			p.line(px, LY, px, LY+lotH, 1, withA(cWhite, 0.07))
@@ -597,9 +608,9 @@ func (g *game) drawNight(p pen) {
 	}
 	dusk := mix(hex(0x6a3050), hex(0x0a0d38), d)
 	p.rect(-200, 0, 1376, 900, withA(dusk, 0.18+0.42*d))
-	warm := color.RGBA{255, 200, 120, 255}
+	warm := color.RGBA{255, 190, 120, 255}
 	gx, gy := tilePx(0, float64(s.GateY))
-	p.glow(gx, gy+TS/2, 2.6*TS, warm, 0.55*d)
+	p.glow(gx, gy+TS/2, 2.6*TS, warm, 0.2*d)
 	for _, a := range s.Attr {
 		if a.Def.Light <= 0 {
 			continue
@@ -607,13 +618,13 @@ func (g *game) drawNight(p pen) {
 		cx, cy := a.Center()
 		x, y := tilePx(cx, cy)
 		r := (a.Def.Light + float64(a.Def.W)/2) * TS
-		k := 0.45
+		k := 0.15
 		if a.Broken {
-			k = 0.15
+			k = 0.05
 		}
 		if a.Def.ID == "lamp" {
-			p.glow(x, y-56, 34, cGold, 1.1*d)
-			k = 0.6
+			p.glow(x, y-56, 26, cGold, 0.45*d)
+			k = 0.2
 		}
 		p.glow(x, y, r, warm, k*d)
 		g.drawBulbs(p, a, d)
@@ -637,7 +648,7 @@ func (g *game) drawBulbs(p pen, a *cv.Attraction, d float64) {
 		}
 		c := cols[i%len(cols)]
 		p.circle(bx, byy, 2.2, mix(c, cWhite, 0.4))
-		p.glow(bx, byy, 9, c, 0.5*d)
+		p.glow(bx, byy, 7, c, 0.28*d)
 	}
 	switch a.Def.ID {
 	case "ferris":
@@ -706,4 +717,51 @@ func (g *game) drawGhost(p pen) {
 		p.rrect(mx-w/2, my-12, w, 24, 8, cRedDk)
 		p.text(err.Error(), f, mx, my, alCenter, cCream)
 	}
+}
+
+// drawPathTile draws one square of footpath, joined up to its neighbours.
+func drawPathTile(p pen, x, y, ts float64, l, r, u, d bool) {
+	const in = 5.0
+	edge, top := hex(0xa88a5c), hex(0xd8c194)
+	x0, y0, x1, y1 := x+in, y+in, x+ts-in, y+ts-in
+	if l {
+		x0 = x
+	}
+	if r {
+		x1 = x + ts
+	}
+	if u {
+		y0 = y
+	}
+	if d {
+		y1 = y + ts
+	}
+	p.rect(x0, y0, x1-x0, y1-y0, edge)
+	p.rect(x0+1.5, y0+1.5, x1-x0-3, y1-y0-3, top)
+	// a few paving stones
+	k := ts / 46
+	for i, o := range [][2]float64{{10, 12}, {28, 9}, {18, 28}, {34, 31}, {8, 36}} {
+		sx, sy := x+o[0]*k, y+o[1]*k
+		p.rrect(sx, sy, 7*k, 5*k, 2*k, []color.RGBA{hex(0xcbb283), hex(0xe2cfa6)}[i%2])
+	}
+}
+
+// drawPathGhost shows the tile a path tool will change.
+func (g *game) drawPathGhost(p pen) {
+	tx, ty, in := g.mouseTile()
+	if !in || g.pathTool == 0 {
+		return
+	}
+	ok := false
+	if g.pathTool == 1 {
+		ok = g.sim.CanPath(tx, ty) == nil
+	} else {
+		ok = g.sim.Path[ty*g.sim.W+tx] && !(ty == g.sim.GateY && tx <= 1)
+	}
+	c := withA(cMint, 0.4)
+	if !ok {
+		c = withA(cRed, 0.35)
+	}
+	px, py := tilePx(float64(tx), float64(ty))
+	p.rect(px+1, py+1, TS-2, TS-2, c)
 }

@@ -47,6 +47,7 @@ type Guest struct {
 	gone           bool
 	lastTile       int
 	grumbleT       float64
+	onPath         bool
 }
 
 func (g *Guest) Leaving() bool { return g.leaving }
@@ -116,6 +117,21 @@ func (g *Guest) update(s *Sim, dt float64) {
 				if g.grumbleT < 0 && s.chance(0.004) {
 					g.think(s, "It's awful dark over here.", 1)
 					g.grumbleT = 20
+				}
+			}
+		}
+		g.onPath = s.in(g.cx, g.cy) && s.Path[s.idx(g.cx, g.cy)]
+		if g.State == Walking {
+			if g.onPath {
+				g.Happy += 0.02 * dt
+			} else {
+				g.Happy -= 0.04 * dt // trampling through the grass
+				if s.Weather == Drizzle {
+					g.Happy -= 0.12 * dt
+					if g.grumbleT < 0 && s.chance(0.003) {
+						g.think(s, "My shoes are all muddy!", 1)
+						g.grumbleT = 20
+					}
 				}
 			}
 		}
@@ -205,7 +221,9 @@ func (g *Guest) walk(s *Sim, dt float64) {
 			g.cx, g.cy = g.nx, g.ny
 			g.moving = false
 			i := s.idx(g.cx, g.cy)
-			s.Traffic[i]++
+			if !s.Path[i] {
+				s.Traffic[i]++
+			}
 			if s.Litter[i] > 0 && i != g.lastTile {
 				g.Happy -= 0.8 * float64(min(s.Litter[i], 3))
 				if g.grumbleT < 0 && s.chance(0.12) {
@@ -239,7 +257,10 @@ func (g *Guest) walk(s *Sim, dt float64) {
 	n := 0
 	for _, o := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
 		x, y := g.cx+o[0], g.cy+o[1]
-		if s.in(x, y) && f[s.idx(x, y)] == d-1 {
+		if !s.in(x, y) {
+			continue
+		}
+		if j := s.idx(x, y); f[j] >= 0 && s.grid[j] == 0 && f[j]+s.StepCost(j) == d {
 			opts[n] = s.idx(x, y)
 			n++
 		}
@@ -258,6 +279,9 @@ func (g *Guest) moveToward(tx, ty, dt float64) bool {
 	dx, dy := tx-g.X, ty-g.Y
 	dist := math.Hypot(dx, dy)
 	step := g.speed * dt
+	if g.onPath {
+		step *= 1.3
+	}
 	if dx > 0.01 {
 		g.Facing = 1
 	} else if dx < -0.01 {
@@ -363,7 +387,7 @@ func (g *Guest) decide(s *Sim) {
 			if v <= 0 {
 				continue
 			}
-			v /= 1 + float64(d)/18
+			v /= 1 + float64(d)/54
 			w[i] = v
 			total += v
 		}
@@ -434,8 +458,11 @@ func (g *Guest) decide(s *Sim) {
 	g.wanders++
 	g.Activities++
 	f := s.flow(cur)
-	for tries := 0; tries < 20; tries++ {
+	for tries := 0; tries < 40; tries++ {
 		i := s.Rand.Intn(len(f))
+		if tries < 30 && !s.Path[i] {
+			continue // a stroll along the midway, if there is one
+		}
 		if f[i] > 0 {
 			g.goal = i
 			return

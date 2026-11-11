@@ -97,15 +97,23 @@ func (g *game) drawTitle(p pen) {
 	p.text("Build it. Run it. Pack it up. Roll to the next town.", body(20, 600), lx+116, ly+194, alLeft, cCream)
 
 	bx, by, bw := lx, ly+250, 300.0
-	g.button(p, bx, by, bw, 58, "PLAY THE DEMO", bRed, true, func() { g.newRun() })
-	g.button(p, bx, by+72, bw, 46, "How to Play", bDark, true, func() { g.panel = "help" })
-	g.button(p, bx, by+130, bw, 46, "Settings", bDark, true, func() { g.panel = "settings" })
+	if sv, ok := g.run(); ok {
+		g.button(p, bx, by, bw, 58, "CONTINUE · NIGHT "+itoa(sv.Night), bRed, true, func() { g.continueRun() })
+		by += 72
+		g.button(p, bx, by, bw, 46, "New Game", bDark, true, func() { g.newRun() })
+		by += 58
+	} else {
+		g.button(p, bx, by, bw, 58, "PLAY THE DEMO", bRed, true, func() { g.newRun() })
+		by += 72
+	}
+	g.button(p, bx, by, bw, 46, "How to Play", bDark, true, func() { g.panel = "help" })
+	g.button(p, bx, by+58, bw, 46, "Settings", bDark, true, func() { g.panel = "settings" })
 	if runtime.GOOS != "js" {
-		g.button(p, bx, by+188, bw, 46, "Quit", bDark, true, func() { g.quit = true })
+		g.button(p, bx, by+116, bw, 46, "Quit", bDark, true, func() { g.quit = true })
 	}
 	st := g.save.Stats
-	if st.Finished > 0 {
-		p.text("Demo finished "+itoa(st.Finished)+"× · Best final cash "+money(st.BestCash), body(13, 500), bx, by+258, alLeft, cTan)
+	if st.BestNight > 0 {
+		p.text("Longest run: "+itoa(st.BestNight)+" nights · Best cash "+money(st.BestCash), body(13, 500), bx, by+186, alLeft, cTan)
 	}
 	p.text("v"+version+" · Demo · © 2026 Ironite", body(12, 400), 24, 880, alLeft, withA(cTan, 0.8))
 	if art.logo != nil {
@@ -188,8 +196,8 @@ func (g *game) drawHelp(p pen) {
 		}
 	}
 	col(x+40, [][2]string{
-		{"Your carnival", "You run a traveling carnival. In this demo you play three nights at the Pine Hollow County Fair, then pack up and hit the road."},
-		{"Daytime: build", "Pick something from the bar at the bottom and click the lot to build it. Guests line up at the gold square in front. Click anything you've built to change its price, or sell it."},
+		{"Your carnival", "You run a traveling carnival at the Pine Hollow County Fair, night after night, for as long as you can keep it going. The game saves every morning, so you can Continue later."},
+		{"Daytime: build", "Pick something from the bar at the bottom and click the lot to build it. Guests line up at the gold square in front. Click anything you've built to change its price, or sell it. On the Paths tab, click and drag to lay footpaths: guests keep to them and walk faster."},
 		{"Night: open the gates", "From 6 to 11 PM guests pay admission, ride, play, eat and spend. Pause with Space, and speed up with 1, 2 and 3."},
 	})
 	col(x+450, [][2]string{
@@ -259,39 +267,7 @@ func (g *game) drawResults(p pen) {
 		note = "A solid night on the midway."
 	}
 	p.para(note, body(13, 400), lx, yy, 620, 18, cTan)
-	label := "On to Day " + itoa(r.Night+1)
-	fn := func() { s.Next() }
-	if r.Night >= s.Fair.Nights {
-		label = "Tear Down & Hit the Road"
-		fn = g.finishDemo
-	}
-	g.button(p, x+210, y+540, 300, 50, label, bRed, true, fn)
-}
-
-func (g *game) drawDone(p pen) {
-	s := g.sim
-	t := s.Totals()
-	x, y := g.dialog(p, 760, 620)
-	p.text("Demo Complete!", display(44), x+380, y+58, alCenter, cGold)
-	p.text("You played all three nights at the Pine Hollow County Fair.", body(15, 500), x+380, y+100, alCenter, cCream)
-	lx := x + 70
-	yy := y + 150
-	row := func(l, v string) {
-		p.text(l, body(15, 400), lx, yy, alLeft, cTan)
-		p.text(v, head(18), x+690, yy, alRight, cCream)
-		yy += 32
-	}
-	row("Guests over three nights", itoa(t.Guests))
-	row("Money taken in", money(t.Income()))
-	row("Final cash (you started with "+money(cv.StartCash)+")", money(s.Cash))
-	row("Prizes won by guests", itoa(t.Wins))
-	row("Average guest happiness", itoa(int(t.AvgHappy))+"%")
-	p.text("Reputation", body(15, 400), lx, yy, alLeft, cTan)
-	stars(p, x+600, yy, 18, s.Rep)
-	yy += 44
-	p.para("The trucks are loaded and the road to Cedar Bend Fest is waiting. The full game takes your carnival on tour: more towns, more rides, staff to hire and a carnival to grow. Thanks for playing the demo!", body(14, 400), lx, yy, 620, 21, cCream)
-	g.button(p, x+120, y+548, 250, 50, "Play Again", bRed, true, func() { g.newRun() })
-	g.button(p, x+390, y+548, 250, 50, "Main Menu", bDark, true, func() { g.screen = "title"; g.sim = nil })
+	g.button(p, x+210, y+540, 300, 50, "On to Day "+itoa(r.Night+1), bRed, true, g.nextDay)
 }
 
 func (g *game) drawBroke(p pen) {

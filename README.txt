@@ -6,14 +6,17 @@ Open Carnival Constructor from the Start menu (Ironite folder), your
 desktop, or Ironite Launcher. Or just double-click CarnivalConstructor.exe.
 
 THE DEMO
-You run a traveling carnival. Play three nights at the Pine Hollow County
-Fair, then tear down and hit the road. The full game takes you on tour.
+You run a traveling carnival at the Pine Hollow County Fair, night after
+night, for as long as you can keep it going. The game saves every morning,
+so you can Continue from the title screen. The full game takes you on tour.
 
 HOW TO PLAY
 - Daytime: pick a ride, midway game, food stand or extra from the bar at
   the bottom and click the lot to build it. Guests line up at the gold
   square in front of it. Click anything you've built to set its price,
   set a midway game's prize odds, or sell it.
+- Paths: on the Paths tab, click and drag across the lot to lay
+  footpaths. Guests keep to them, walk faster and stay happier.
 - Night: press OPEN THE GATES. From 6 to 11 PM guests pay admission,
   ride, play, eat and spend. Space pauses; 1, 2 and 3 set the speed.
 - Keep guests happy: rides for fun, food and drink for hunger and
